@@ -104,12 +104,31 @@ class Pizza {
     let overlapped = false;
     this.slices.forEach(existingSlice => {
       if (newSlice.id !== existingSlice.id) {
-        if ((newSlice.start.row >= existingSlice.start.row && newSlice.start.column >= existingSlice.start.column
-          && newSlice.start.row <= existingSlice.end.row && newSlice.start.column <= existingSlice.end.column)
-          || (newSlice.end.row >= existingSlice.start.row && newSlice.end.column >= existingSlice.start.column
-          && newSlice.end.row <= existingSlice.end.row && newSlice.end.column <= existingSlice.end.column)) {
-          overlapped = true;
-        }
+        let vertexs = [
+          {
+            row: newSlice.start.row,
+            column: newSlice.start.column,
+          },
+          {
+            row: newSlice.start.row,
+            column: newSlice.end.column,
+          },
+          {
+            row: newSlice.end.row,
+            column: newSlice.start.column,
+          },
+          {
+            row: newSlice.end.row,
+            column: newSlice.end.column,
+          },
+        ];
+
+        vertexs.forEach(vertex => {
+          if (vertex.row >= existingSlice.start.row && vertex.column >= existingSlice.start.column
+              && vertex.row <= existingSlice.end.row && vertex.column <= existingSlice.end.column) {
+            overlapped = true;
+          }
+        });
       }
     });
     return overlapped;
@@ -125,6 +144,7 @@ class Pizza {
     const maxCells = config.H;
     let start = slice.start;
     let end = slice.end;
+    let canBeExpanded = false;
 
     if (start.row > 0) {
       let newStart = {row: start.row - 1, column: start.column};
@@ -133,6 +153,7 @@ class Pizza {
         slice.start = start;
       } else {
         start = newStart;
+        canBeExpanded = true;
       }
     }
 
@@ -143,6 +164,7 @@ class Pizza {
         slice.start = start;
       } else {
         start = newStart;
+        canBeExpanded = true;
       }
     }
 
@@ -153,6 +175,7 @@ class Pizza {
         slice.end = end;
       } else {
         end = newEnd;
+        canBeExpanded = true;
       }
     }
 
@@ -163,7 +186,12 @@ class Pizza {
         slice.end = end;
       } else {
         end = newEnd;
+        canBeExpanded = true;
       }
+    }
+
+    if (canBeExpanded) {
+      this.expandSlice(slice, config);
     }
   }
 }
