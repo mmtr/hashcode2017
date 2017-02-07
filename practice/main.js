@@ -8,10 +8,11 @@ const MUSHROOM = 'M';
 
 class Config {
   constructor(line) {
-    const R = parseInt(line.charAt(0));
-    const C = parseInt(line.charAt(2));
-    const L = parseInt(line.charAt(4));
-    const H = parseInt(line.charAt(6));
+    let words = line.split(' ');
+    const R = parseInt(words[0]);
+    const C = parseInt(words[1]);
+    const L = parseInt(words[2]);
+    const H = parseInt(words[3]);
     this.R = R;
     this.C = C;
     this.L = L;
@@ -42,6 +43,14 @@ class Slice {
   get numberOfCells() {
     return ((this.end.row - this.start.row) + 1) * ((this.end.column - this.start.column) + 1);
   }
+
+  get width() {
+    return this.end.column - this.start.column + 1;
+  }
+
+  get height() {
+    return this.end.row - this.start.row + 1;
+  }
 }
 
 class Pizza {
@@ -71,30 +80,26 @@ class Pizza {
   findSmallestSlices(config) {
     const minCells = config.L * 2;
 
-    // Horizontal
-    for (let rowIndex = 0; rowIndex < config.R; rowIndex++) {
-      for (let columnIndex = 0; columnIndex <= (config.C - minCells); columnIndex++) {
-        let start = {row: rowIndex, column: columnIndex};
-        let end = {row: rowIndex, column: columnIndex + minCells - 1};
-        let cells = this.getCells(start, end);
-        let slice = new Slice(cells, start, end);
-        if (slice.isContainingEnoughIngredients(config.L) && !this.isOverlapped(slice)) {
-          this.slices.push(slice);
-          columnIndex += minCells;
-        }
-      }
-    }
+    for (let width = 1; width <= minCells; width++) {
+      for (let height = minCells; height >= 1; height--) {
 
-    // Vertical
-    for (let columnIndex = 0; columnIndex < config.C; columnIndex++) {
-      for (let rowIndex = 0; rowIndex <= (config.R - minCells); rowIndex++) {
-        let start = {row: rowIndex, column: columnIndex};
-        let end = {row: rowIndex + minCells - 1, column: columnIndex};
-        let cells = this.getCells(start, end);
-        let slice = new Slice(cells, start, end);
-        if (slice.isContainingEnoughIngredients(config.L) && !this.isOverlapped(slice)) {
-          this.slices.push(slice);
-          rowIndex += minCells;
+        if ((width * height) === minCells) {
+
+          for (let rowIndex = 0; rowIndex < config.R; rowIndex++) {
+            for (let columnIndex = 0; columnIndex < config.C; columnIndex++) {
+              let start = {row: rowIndex, column: columnIndex};
+              let end = {row: rowIndex + height - 1, column: columnIndex + width - 1};
+
+              if (end.row < config.R && end.column < config.C) {
+                let cells = this.getCells(start, end);
+                let slice = new Slice(cells, start, end);
+                if (slice.isContainingEnoughIngredients(config.L) && !this.isOverlapped(slice)) {
+                  this.slices.push(slice);
+                }
+              }
+            }
+          }
+
         }
       }
     }
@@ -104,31 +109,12 @@ class Pizza {
     let overlapped = false;
     this.slices.forEach(existingSlice => {
       if (newSlice.id !== existingSlice.id) {
-        let vertexs = [
-          {
-            row: newSlice.start.row,
-            column: newSlice.start.column,
-          },
-          {
-            row: newSlice.start.row,
-            column: newSlice.end.column,
-          },
-          {
-            row: newSlice.end.row,
-            column: newSlice.start.column,
-          },
-          {
-            row: newSlice.end.row,
-            column: newSlice.end.column,
-          },
-        ];
-
-        vertexs.forEach(vertex => {
-          if (vertex.row >= existingSlice.start.row && vertex.column >= existingSlice.start.column
-              && vertex.row <= existingSlice.end.row && vertex.column <= existingSlice.end.column) {
-            overlapped = true;
-          }
-        });
+        if (newSlice.start.column <= existingSlice.end.column
+          && newSlice.start.row <= existingSlice.end.row
+          && existingSlice.start.column <= newSlice.end.column
+          && existingSlice.start.row <= newSlice.end.row) {
+          overlapped = true;
+        }
       }
     });
     return overlapped;
@@ -201,6 +187,7 @@ const files = ['example', 'small', 'medium', 'big'];
 files.forEach(file => processFile(file));
 
 function processFile(filename) {
+  console.log(filename, 'start');
   if (fs.existsSync(filename + '.out')) {
     fs.unlinkSync(filename + '.out');
   }
@@ -228,6 +215,7 @@ function processFile(filename) {
     output.write(pizza.slices.length + '\n');
     pizza.slices.forEach(slice => {
       output.write(slice.start.row + ' ' + slice.start.column + ' ' + slice.end.row + ' ' + slice.end.column + '\n');
-    })
+    });
+    console.log(filename, 'end');
   });
 }
