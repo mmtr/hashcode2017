@@ -66,6 +66,7 @@ class Pizza {
 
   cut(config) {
     this.findSmallestSlices(config);
+    this.findBiggestSlices(config);
     this.expandSlices(config);
   }
 
@@ -77,6 +78,23 @@ class Pizza {
     return cells;
   }
 
+  searchSlices(width, height, config) {
+    for (let rowIndex = 0; rowIndex < config.R; rowIndex++) {
+      for (let columnIndex = 0; columnIndex < config.C; columnIndex++) {
+        let start = {row: rowIndex, column: columnIndex};
+        let end = {row: rowIndex + height - 1, column: columnIndex + width - 1};
+
+        if (end.row < config.R && end.column < config.C) {
+          let cells = this.getCells(start, end);
+          let slice = new Slice(cells, start, end);
+          if (slice.isContainingEnoughIngredients(config.L) && !this.isOverlapped(slice)) {
+            this.slices.push(slice);
+          }
+        }
+      }
+    }
+  }
+
   findSmallestSlices(config) {
     const minCells = config.L * 2;
 
@@ -84,22 +102,20 @@ class Pizza {
       for (let height = minCells; height >= 1; height--) {
 
         if ((width * height) === minCells) {
+          this.searchSlices(width, height, config);
+        }
+      }
+    }
+  }
 
-          for (let rowIndex = 0; rowIndex < config.R; rowIndex++) {
-            for (let columnIndex = 0; columnIndex < config.C; columnIndex++) {
-              let start = {row: rowIndex, column: columnIndex};
-              let end = {row: rowIndex + height - 1, column: columnIndex + width - 1};
+  findBiggestSlices(config) {
+    const maxCells = config.H;
 
-              if (end.row < config.R && end.column < config.C) {
-                let cells = this.getCells(start, end);
-                let slice = new Slice(cells, start, end);
-                if (slice.isContainingEnoughIngredients(config.L) && !this.isOverlapped(slice)) {
-                  this.slices.push(slice);
-                }
-              }
-            }
-          }
+    for (let width = 1; width <= maxCells; width++) {
+      for (let height = maxCells; height >= 1; height--) {
 
+        if ((width * height) === maxCells) {
+          this.searchSlices(width, height, config);
         }
       }
     }
