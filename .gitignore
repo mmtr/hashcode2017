@@ -1,3 +1,4 @@
 .idea
 *.out
-*.in
+*.zip
+node_modules
