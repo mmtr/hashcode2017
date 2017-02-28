@@ -6,9 +6,9 @@ class Cache {
     this.size = parseInt(size);
     this.used = 0;
     this.videos = [];
-    this.timeSavedPerVideo = [];
+    //this.timeSavedPerVideo = [];
     this.endpoints = [];
-    this._endpointLatency = {};
+    //this._endpointLatency = {};
   }
 
   get availableSize() {
@@ -16,68 +16,46 @@ class Cache {
   }
 
   addVideo(video) {
-    if (this.videos.indexOf(video) === -1) {
-      this.videos.push(video);
-      this.used += video.size;
+    if (this.availableSize >= video.size) {
+      if (this.videos.indexOf(video) === -1) {
+        if (this.willServeVideo(video)) {
+          this.videos.push(video);
+          this.used += video.size;
 
-      video.usedCaches.push(this);
-    }
-  }
-
-  removeVideo(video) {
-    const videoIndex = this.videos.indexOf(video);
-    this.videos.splice(videoIndex, 1);
-    this.used -= video.size;
-
-    const usedCacheIndex = video.usedCaches.indexOf(this);
-    video.usedCaches.splice(usedCacheIndex, 1);
-  }
-
-  videosThatSaveLessTimeForSize(size) {
-    let worstVideos = [];
-    this.updateTimeSavedPerVideo();
-
-
-    if (size <= this.size) {
-      let totalSize = 0;
-      let index = 0;
-
-      while (totalSize < size) {
-        let video = this.timeSavedPerVideo[index];
-        worstVideos.push(video);
-        totalSize += video.video.size;
-        index++;
+          video.usedCaches.push(this);
+        }
       }
     }
-    return worstVideos;
   }
 
-  updateTimeSavedPerVideo() {
-    this.timeSavedPerVideo = [];
-
-    this.videos.forEach(video => {
-      this.timeSavedPerVideo.push({
-        video: video,
-        time: video.timeSaved(this),
-      })
-    });
-
-    this.timeSavedPerVideo = this.timeSavedPerVideo.sort((timeSavedPerVideo1, timeSavedPerVideo2) => {
-      return timeSavedPerVideo1.time - timeSavedPerVideo2.time;
-    });
-  }
-
-  addEndpoint(endpoint, latency) {
+  addEndpoint(endpoint) {
     this.endpoints.push(endpoint);
-    this._endpointLatency[endpoint.id] = parseInt(latency);
   }
 
-  endpointLatency(endpoint) {
-    if (endpoint.id in this._endpointLatency) {
-      return this._endpointLatency[endpoint.id];
-    } else {
-      return null;
+  willServeVideo(video) {
+    // Video will be served from this cache if it contains at least one endpoint not connected to a used cache in the
+    // video
+
+    let willServeVideo = false;
+
+    let endpoints = [];
+    video.usedCaches.forEach(cache => {
+      cache.endpoints.forEach(endpoint => {
+        if (endpoints.indexOf(endpoint) === -1) {
+          endpoints.push(endpoint);
+        }
+      });
+    });
+
+    for (let i = 0; i < this.endpoints.length; i++) {
+      let endpoint = this.endpoints[i];
+      if (endpoints.indexOf(endpoint) === -1) {
+        willServeVideo = true;
+        break;
+      }
     }
+
+    return willServeVideo;
   }
 }
 

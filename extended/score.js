@@ -24,7 +24,12 @@ class Score {
     } else {
       A = 1 - ((endpointsThatWillSeeTheVideo - this.video.endpoints.length) / (1 - this.video.endpoints.length));
     }
-    let B = 1 - (endpointsThatWontSeeTheVideo / (this.cache.endpoints.length - 1));
+    let B = 0;
+    if (this.cache.endpoints.length === 1) {
+      B = 1
+    } else {
+      B = 1 - (endpointsThatWontSeeTheVideo / (this.cache.endpoints.length - 1));
+    }
 
     // Latency
     let lowestLatency = null;
@@ -69,7 +74,8 @@ class Score {
     // Popularity
     let E = 1 - ((this.video.requests - stats.maxVideoRequests) / (stats.minVideoRequests - stats.maxVideoRequests));
 
-    return (20 * A) + (20 * B) + (20 * C) + (20 * D) + (20 * E);
+    let score = (20 * A) + (20 * B) + (20 * C) + (20 * D) + (20 * E);
+    return score;
   }
 }
 

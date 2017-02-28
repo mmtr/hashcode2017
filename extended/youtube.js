@@ -134,7 +134,7 @@ class YouTube extends EventEmitter {
       this.stats.caches++;
     }
     this.lastEndpoint.addCache(cache, line[1]);
-    cache.addEndpoint(this.lastEndpoint, line[1]);
+    cache.addEndpoint(this.lastEndpoint);
   }
 
   parseRequestDescriptions(line) {
@@ -146,13 +146,13 @@ class YouTube extends EventEmitter {
     });
     let requests = parseInt(line[2]);
 
-    video.addRequests(endpoint, requests);
+    video.addRequests(requests);
     video.addEndpoint(endpoint);
 
     if (!this.stats.minVideoRequests) {
       this.stats.minVideoRequests = video.requests;
     } else {
-      this.stats.minVideoRequests = Math.min(video.requests, this.stats.minVideoSize);
+      this.stats.minVideoRequests = Math.min(video.requests, this.stats.minVideoRequests);
     }
     if (!this.stats.maxVideoRequests) {
       this.stats.maxVideoRequests = video.requests;
@@ -165,7 +165,9 @@ class YouTube extends EventEmitter {
     console.log(this.filename + ': scoring...', new Date() - this.startTime);
     this.videos.forEach(video => {
       video.caches.forEach(cache => {
-        this.scores.push(new Score(video, cache, this.stats));
+        if (cache.size >= video.size) {
+          this.scores.push(new Score(video, cache, this.stats));
+        }
       });
     });
 
@@ -179,27 +181,8 @@ class YouTube extends EventEmitter {
     console.log(this.filename + ': caching videos...', new Date() - this.startTime);
 
     this.scores.forEach(score => {
-      if (score.cache.availableSize >= score.video.size) {
-        score.cache.addVideo(score.video);
-      }
+      score.cache.addVideo(score.video);
     });
-
-    // As file
-    /*let videos = this.videos;
-
-    // Asc
-    /*videos = videos.sort((video1, video2) => {
-      return video1.size - video2.size;
-    });*/
-
-    // Desc
-    /*videos = videos.sort((video1, video2) => {
-      return video2.size - video1.size;
-    });
-
-    videos.forEach(video => {
-      video.cache();
-    });*/
   }
 
   writeFile() {

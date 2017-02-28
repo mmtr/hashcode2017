@@ -9,14 +9,6 @@ class Endpoint {
     this.caches = [];
   }
 
-  cacheLatency(cache) {
-    if (cache.id in this._cacheLatency) {
-      return this._cacheLatency[cache.id];
-    } else {
-      return null;
-    }
-  }
-
   addCache(cache, latency) {
     this._cacheLatency[cache.id] = parseInt(latency);
     this.caches.push(cache);
@@ -27,13 +19,21 @@ class Endpoint {
     });
   }
 
-  bestCache(nth) {
+  cacheLatency(cache) {
+    if (cache.id in this._cacheLatency) {
+      return this._cacheLatency[cache.id];
+    } else {
+      return null;
+    }
+  }
+
+  /*bestCache(nth) {
     if (!nth) {
       nth = 1;
     }
 
     return this.caches.length && nth <= this.caches.length ? this.caches[nth-1] : null;
-  }
+  }*/
 
 }
 
