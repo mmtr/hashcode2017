@@ -3,7 +3,7 @@
 const gulp = require('gulp');
 const zip = require('gulp-zip');
 const exec = require('child_process').exec;
-const memory = parseInt(require('os').freemem() / 1048576);
+const memory = Math.max(parseInt(require('os').freemem() / 1048576), 1024);
 
 const execNodeScript = (round) => {
   console.log(`Executing node script using ${memory} MB of memory...`);

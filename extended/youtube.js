@@ -163,10 +163,44 @@ class YouTube extends EventEmitter {
 
   calculateScore() {
     console.log(this.filename + ': scoring...', new Date() - this.startTime);
+
+    var cp = require('child_process');
+    var workers = [];
+
+    for (let i = 0; i <= require('os').cpus().length; i++) {
+      let worker = cp.fork('./worker');
+      worker.on('message', (m) => {
+        console.log('PARENT got message:', m);
+        switch (m.action) {
+          case 'score':
+            this.scores.push(m.score);
+            break;
+        }
+      });
+      workers.push(worker);
+    }
+
+    let videoIndex = 0;
     this.videos.forEach(video => {
+      videoIndex++;
+      let workerToUse = 0;
+      if (videoIndex % 1000 === 0) {
+        console.log(`Video ${videoIndex}/${this.videos.length}`);
+      }
+      if (workerToUse > workers.length) {
+        workerToUse = 0
+      }
       video.caches.forEach(cache => {
         if (cache.size >= video.size) {
-          this.scores.push(new Score(video, cache, this.stats));
+          workers[workerToUse].send({
+            action: 'score',
+            video: video,
+            cache: cache,
+            stats: this.stats
+          });
+          workerToUse++;
+          //console.log(`Video ${videoIndex}/${this.videos.length} - Cache ${cacheIndex}/${video.caches.length}`);
+          //this.scores.push(new Score(video, cache, this.stats));
         }
       });
     });
@@ -177,10 +211,14 @@ class YouTube extends EventEmitter {
   }
 
   cacheVideos() {
-
     console.log(this.filename + ': caching videos...', new Date() - this.startTime);
+    let scoreIndex = 0;
 
     this.scores.forEach(score => {
+      scoreIndex++;
+      if (scoreIndex % 10000 === 0) {
+        console.log(`Pair video-cache ${scoreIndex}/${this.scores.length}`);
+      }
       score.cache.addVideo(score.video);
     });
   }
