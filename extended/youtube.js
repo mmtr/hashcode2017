@@ -16,9 +16,9 @@ class YouTube extends EventEmitter {
     this.startTime = new Date();
     this.filename = filename;
     this.config = null;
-    this.videos = [];
-    this.endpoints = [];
-    this.caches = [];
+    this.videos = {};
+    this.endpoints = {};
+    this.caches = {};
     this.stats = {
       videos: 0,
       endpoints: 0,
@@ -86,7 +86,7 @@ class YouTube extends EventEmitter {
   parseVideos(line) {
     line.forEach((videoSize, videoId) => {
       let video = new Video(videoId, videoSize);
-      this.videos.push(video);
+      this.videos[video.id] = video;
       this.stats.videos++;
       if (!this.stats.minVideoSize) {
         this.stats.minVideoSize = video.size;
@@ -102,11 +102,11 @@ class YouTube extends EventEmitter {
   }
 
   get lastEndpoint() {
-    return this.endpoints[this.endpoints.length - 1];
+    return this.endpoints[this.stats.endpoints - 1];
   }
 
   parseEndpoints(line) {
-    if (this.endpoints.length) {
+    if (this.stats.endpoints) {
       if (this.lastEndpoint.cachesConnected !== this.lastEndpoint.caches.length) {
         this.parseCacheConnection(line);
       } else {
@@ -118,19 +118,19 @@ class YouTube extends EventEmitter {
   }
 
   parseEndpoint(line) {
-    let endpoint = new Endpoint(this.endpoints.length, line[0], line[1]);
-    this.endpoints.push(endpoint);
+    let endpoint = new Endpoint(this.stats.endpoints, line[0], line[1]);
+    this.endpoints[endpoint.id] = endpoint;
     this.stats.endpoints++;
   }
 
   parseCacheConnection(line) {
     let cacheId = line[0];
-    let cache = this.caches.find(cache => {
-      return cache.id === parseInt(cacheId);
-    });
-    if (!cache) {
-      cache = new Cache(line[0], this.config.cacheSize);
-      this.caches.push(cache);
+    let cache = null;
+    if (cacheId in this.caches) {
+      cache = this.caches[cacheId];
+    } else {
+      cache = new Cache(cacheId, this.config.cacheSize);
+      this.caches[cache.id] = cache;
       this.stats.caches++;
     }
     this.lastEndpoint.addCache(cache, line[1]);
@@ -138,12 +138,8 @@ class YouTube extends EventEmitter {
   }
 
   parseRequestDescriptions(line) {
-    let video = this.videos.find(video => {
-      return video.id === parseInt(line[0]);
-    });
-    let endpoint = this.endpoints.find(endpoint => {
-      return endpoint.id === parseInt(line[1]);
-    });
+    let video = this.videos[line[0]];
+    let endpoint = this.endpoints[line[1]];
     let requests = parseInt(line[2]);
 
     video.addRequests(requests);
@@ -164,13 +160,13 @@ class YouTube extends EventEmitter {
   calculateScore() {
     console.log(this.filename + ': scoring...', new Date() - this.startTime);
 
-    var cp = require('child_process');
-    var workers = [];
+    /*let cp = require('child_process');
+    let workers = [];
 
-    for (let i = 0; i <= require('os').cpus().length; i++) {
+    for (let i = 1; i <= require('os').cpus().length; i++) {
       let worker = cp.fork('./worker');
-      worker.on('message', (m) => {
-        console.log('PARENT got message:', m);
+      worker.on('message', m => {
+        console.log(m);
         switch (m.action) {
           case 'score':
             this.scores.push(m.score);
@@ -180,27 +176,69 @@ class YouTube extends EventEmitter {
       workers.push(worker);
     }
 
-    let videoIndex = 0;
-    this.videos.forEach(video => {
-      videoIndex++;
-      let workerToUse = 0;
-      if (videoIndex % 1000 === 0) {
-        console.log(`Video ${videoIndex}/${this.videos.length}`);
-      }
-      if (workerToUse > workers.length) {
-        workerToUse = 0
-      }
-      video.caches.forEach(cache => {
+    let videoCachePairs = [];
+    Object.keys(this.videos).forEach(videoId => {
+      let video = this.videos[videoId];
+      video.caches.forEach(cacheId => {
+        let cache = this.caches[cacheId];
         if (cache.size >= video.size) {
-          workers[workerToUse].send({
-            action: 'score',
+          videoCachePairs.push({
             video: video,
             cache: cache,
-            stats: this.stats
           });
-          workerToUse++;
-          //console.log(`Video ${videoIndex}/${this.videos.length} - Cache ${cacheIndex}/${video.caches.length}`);
-          //this.scores.push(new Score(video, cache, this.stats));
+        }
+      });
+    });
+    let totalVideoCachePairs = videoCachePairs.length;
+
+    const launchWorker = (worker) => {
+      let videoCachePair = videoCachePairs.pop();
+      console.log('launching worker...');
+
+      worker.send({
+        action: 'score',
+        video: videoCachePair.video,
+        cache: videoCachePair.cache,
+        youtube: this
+      });
+    };
+
+    console.log(workers.length);
+
+    workers.forEach(worker => {
+      if (videoCachePairs.length) {
+        launchWorker(worker);
+      }
+
+      worker.on('exit', () => {
+        console.log('exit');
+        if (videoCachePairs.length) {
+          launchWorker(worker);
+        }
+      });
+    });
+
+    while (this.scores.length !== totalVideoCachePairs) {
+
+    }
+
+    console.log(this.scores);
+
+    workers.forEach(worker => {
+      worker.disconnect();
+    });*/
+
+    let videoIndex = 0;
+    Object.keys(this.videos).forEach(videoId => {
+      videoIndex++;
+      if (videoIndex % 1000 === 0) {
+        console.log(`Video ${videoIndex}/${Object.keys(this.videos).length}`);
+      }
+      let video = this.videos[videoId];
+      video.caches.forEach(cacheId => {
+        let cache = this.caches[cacheId];
+        if (cache.size >= video.size) {
+          this.scores.push(new Score(video, cache, this));
         }
       });
     });
@@ -208,6 +246,8 @@ class YouTube extends EventEmitter {
     this.scores = this.scores.sort((score1, score2) => {
       return score2.score - score1.score;
     });
+
+    //console.log(this.scores);
   }
 
   cacheVideos() {
@@ -219,7 +259,7 @@ class YouTube extends EventEmitter {
       if (scoreIndex % 10000 === 0) {
         console.log(`Pair video-cache ${scoreIndex}/${this.scores.length}`);
       }
-      score.cache.addVideo(score.video);
+      score.cache.addVideo(score.video, this);
     });
   }
 
@@ -232,18 +272,20 @@ class YouTube extends EventEmitter {
     const output = fs.createWriteStream(this.filename + '.out');
 
     let cachesUsed = 0;
-    this.caches.forEach(cache => {
+    Object.keys(this.caches).forEach(cacheId => {
+      let cache = this.caches[cacheId];
       if (cache.videos.length) {
         cachesUsed++;
       }
     });
 
     output.write(cachesUsed + '\n');
-    this.caches.forEach(cache => {
+    Object.keys(this.caches).forEach(cacheId => {
+      let cache = this.caches[cacheId];
       if (cache.videos.length) {
         let lineToWrite = cache.id;
-        cache.videos.forEach(video => {
-          lineToWrite += (' ' + video.id);
+        cache.videos.forEach(videoId => {
+          lineToWrite += (' ' + videoId);
         });
         output.write(lineToWrite + '\n');
       }

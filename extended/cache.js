@@ -15,41 +15,41 @@ class Cache {
     return this.size - this.used;
   }
 
-  addVideo(video) {
+  addVideo(video, youtube) {
     if (this.availableSize >= video.size) {
-      if (this.videos.indexOf(video) === -1) {
-        if (this.willServeVideo(video)) {
-          this.videos.push(video);
+      if (this.videos.indexOf(video.id) === -1) {
+        if (this.willServeVideo(video, youtube)) {
+          this.videos.push(video.id);
           this.used += video.size;
 
-          video.usedCaches.push(this);
+          video.usedCaches.push(this.id);
         }
       }
     }
   }
 
   addEndpoint(endpoint) {
-    this.endpoints.push(endpoint);
+    this.endpoints.push(endpoint.id);
   }
 
-  willServeVideo(video) {
+  willServeVideo(video, youtube) {
     // Video will be served from this cache if it contains at least one endpoint not connected to a used cache in the
     // video
 
     let willServeVideo = false;
 
     let endpoints = [];
-    video.usedCaches.forEach(cache => {
-      cache.endpoints.forEach(endpoint => {
-        if (endpoints.indexOf(endpoint) === -1) {
-          endpoints.push(endpoint);
+    video.usedCaches.forEach(cacheId => {
+      let cache = youtube.caches[cacheId];
+      cache.endpoints.forEach(endpointId => {
+        if (endpoints.indexOf(endpointId) === -1) {
+          endpoints.push(endpointId);
         }
       });
     });
 
-    for (let i = 0; i < this.endpoints.length; i++) {
-      let endpoint = this.endpoints[i];
-      if (endpoints.indexOf(endpoint) === -1) {
+    for (let endpointId in this.endpoints) {
+      if (endpoints.indexOf(parseInt(endpointId)) === -1) {
         willServeVideo = true;
         break;
       }

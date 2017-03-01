@@ -15,10 +15,10 @@ class Video {
   }
 
   addEndpoint(endpoint) {
-    this.endpoints.push(endpoint);
-    endpoint.caches.forEach(cache => {
-      if (cache && this.caches.indexOf(cache) === -1) {
-        this.caches.push(cache);
+    this.endpoints.push(endpoint.id);
+    endpoint.caches.forEach(cacheId => {
+      if (cacheId && this.caches.indexOf(cacheId) === -1) {
+        this.caches.push(cacheId);
       }
     })
   }

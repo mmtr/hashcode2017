@@ -1,18 +1,18 @@
 'use strict';
 
 class Score {
-  constructor(video, cache, stats) {
+  constructor(video, cache, youtube) {
     this.video = video;
     this.cache = cache;
-    this.score = this.calculateScore(stats);
+    this.score = this.calculateScore(youtube);
   }
 
-  calculateScore(stats) {
+  calculateScore(youtube) {
     // Endpoints
     let endpointsThatWillSeeTheVideo = 0;
     let endpointsThatWontSeeTheVideo = 0;
-    this.cache.endpoints.forEach(endpoint => {
-      if (this.video.endpoints.indexOf(endpoint) !== -1) {
+    this.cache.endpoints.forEach(endpointId => {
+      if (this.video.endpoints.indexOf(endpointId) !== -1) {
         endpointsThatWillSeeTheVideo++;
       } else {
         endpointsThatWontSeeTheVideo++;
@@ -35,11 +35,16 @@ class Score {
     let lowestLatency = null;
     let highestLatency = null;
     let currentLatency = null;
-    this.video.caches.forEach(cache => {
+    this.video.caches.forEach(cacheId => {
+      let cache = youtube.caches[cacheId];
       let totalLatency = 0;
-      cache.endpoints.forEach(endpoint => {
-        if (this.video.endpoints.indexOf(endpoint) !== -1) {
-          let latency = endpoint.cacheLatency(cache);
+      cache.endpoints.forEach(endpointId => {
+        let endpoint = youtube.endpoints[endpointId];
+        if (this.video.endpoints.indexOf(endpoint.id) !== -1) {
+          let latency = null;
+          if (cache.id in endpoint._cacheLatency) {
+            latency = endpoint._cacheLatency[cache.id];
+          }
           if (latency) {
             totalLatency += latency;
           }
@@ -69,10 +74,10 @@ class Score {
     }
 
     // Size
-    let D = 1 - ((this.video.size - stats.minVideoSize) / (stats.maxVideoSize - stats.minVideoSize));
+    let D = 1 - ((this.video.size - youtube.stats.minVideoSize) / (youtube.stats.maxVideoSize - youtube.stats.minVideoSize));
 
     // Popularity
-    let E = 1 - ((this.video.requests - stats.maxVideoRequests) / (stats.minVideoRequests - stats.maxVideoRequests));
+    let E = 1 - ((this.video.requests - youtube.stats.maxVideoRequests) / (youtube.stats.minVideoRequests - youtube.stats.maxVideoRequests));
 
     let score = (20 * A) + (20 * B) + (20 * C) + (20 * D) + (20 * E);
     return score;

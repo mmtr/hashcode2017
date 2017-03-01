@@ -1,15 +1,17 @@
+'use strict';
+
 const Score = require('./score');
 
 process.on('message', (m) => {
-  console.log('CHILD got message:', m);
-
   switch (m.action) {
 
     case 'score':
       let video = m.video;
       let cache = m.cache;
-      let stats = m.stats;
-      let score = new Score(video, cache, stats);
+      let youtube = m.youtube;
+      let score = new Score(video, cache, youtube);
+
+      console.log('sending...');
 
       process.send({
         action: m.action,

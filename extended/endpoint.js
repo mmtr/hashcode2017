@@ -11,7 +11,7 @@ class Endpoint {
 
   addCache(cache, latency) {
     this._cacheLatency[cache.id] = parseInt(latency);
-    this.caches.push(cache);
+    this.caches.push(cache.id);
 
     // Best caches first
     this.caches = this.caches.sort((cache1, cache2) => {
@@ -20,7 +20,7 @@ class Endpoint {
   }
 
   cacheLatency(cache) {
-    if (cache.id in this._cacheLatency) {
+    if (cache in this._cacheLatency) {
       return this._cacheLatency[cache.id];
     } else {
       return null;
