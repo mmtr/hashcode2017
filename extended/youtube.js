@@ -38,11 +38,17 @@ class YouTube extends EventEmitter {
 
     rl.on('close', () => {
       this.calculateScore();
+    });
+
+    this.on('score:calculated', () => {
+      this.scores = this.scores.sort((score1, score2) => {
+        return score2.score - score1.score;
+      });
       this.cacheVideos();
       this.writeFile();
       console.log(this.filename + ': end', new Date() - this.startTime);
       this.emit('end');
-    });
+    })
   }
 
   readFile() {
@@ -160,22 +166,6 @@ class YouTube extends EventEmitter {
   calculateScore() {
     console.log(this.filename + ': scoring...', new Date() - this.startTime);
 
-    /*let cp = require('child_process');
-    let workers = [];
-
-    for (let i = 1; i <= require('os').cpus().length; i++) {
-      let worker = cp.fork('./worker');
-      worker.on('message', m => {
-        console.log(m);
-        switch (m.action) {
-          case 'score':
-            this.scores.push(m.score);
-            break;
-        }
-      });
-      workers.push(worker);
-    }
-
     let videoCachePairs = [];
     Object.keys(this.videos).forEach(videoId => {
       let video = this.videos[videoId];
@@ -190,64 +180,60 @@ class YouTube extends EventEmitter {
       });
     });
     let totalVideoCachePairs = videoCachePairs.length;
+    let videoCachePairProcessed = 0;
 
-    const launchWorker = (worker) => {
-      let videoCachePair = videoCachePairs.pop();
-      console.log('launching worker...');
+    const processNextVideoCachePair = (worker) => {
+      //console.log(videoCachePairProcessed, videoCachePairs);
+      if (videoCachePairProcessed < totalVideoCachePairs) {
+        let videoCachePair = videoCachePairs[videoCachePairProcessed];
+        videoCachePairProcessed++;
 
-      worker.send({
-        action: 'score',
-        video: videoCachePair.video,
-        cache: videoCachePair.cache,
-        youtube: this
-      });
+        worker.send({
+          action: 'score',
+          video: videoCachePair.video,
+          cache: videoCachePair.cache,
+          caches: this.caches,
+          stats: this.stats,
+          endpoints: this.endpoints,
+        });
+      }
     };
 
-    console.log(workers.length);
+    let cp = require('child_process');
+    let workers = [];
 
-    workers.forEach(worker => {
-      if (videoCachePairs.length) {
-        launchWorker(worker);
-      }
-
-      worker.on('exit', () => {
-        console.log('exit');
-        if (videoCachePairs.length) {
-          launchWorker(worker);
+    for (let i = 1; i <= 32; i++) {
+      const worker = cp.fork('./worker');
+      worker.on('message', (m) => {
+        switch (m.action) {
+          case 'score':
+            this.scores.push(m.score);
+            if (videoCachePairs.length) {
+              processNextVideoCachePair(worker);
+            }
+            break;
         }
       });
-    });
-
-    while (this.scores.length !== totalVideoCachePairs) {
-
+      if (videoCachePairProcessed < totalVideoCachePairs) {
+        setTimeout(() => {
+          processNextVideoCachePair(worker);
+        }, i * 10);
+      }
+      workers.push(worker);
     }
 
-    console.log(this.scores);
-
-    workers.forEach(worker => {
-      worker.disconnect();
-    });*/
-
-    let videoIndex = 0;
-    Object.keys(this.videos).forEach(videoId => {
-      videoIndex++;
-      if (videoIndex % 1000 === 0) {
-        console.log(`Video ${videoIndex}/${Object.keys(this.videos).length}`);
+    const intervalId = setInterval(() => {
+      if (this.scores.length !== totalVideoCachePairs) {
+        console.log(`${this.scores.length}/${totalVideoCachePairs}`);
+      } else {
+        clearInterval(intervalId);
+        workers.forEach(worker => {
+          worker.kill();
+        });
+        this.emit('score:calculated');
       }
-      let video = this.videos[videoId];
-      video.caches.forEach(cacheId => {
-        let cache = this.caches[cacheId];
-        if (cache.size >= video.size) {
-          this.scores.push(new Score(video, cache, this));
-        }
-      });
-    });
+    }, 500);
 
-    this.scores = this.scores.sort((score1, score2) => {
-      return score2.score - score1.score;
-    });
-
-    //console.log(this.scores);
   }
 
   cacheVideos() {
@@ -255,11 +241,13 @@ class YouTube extends EventEmitter {
     let scoreIndex = 0;
 
     this.scores.forEach(score => {
+      let cache = this.caches[score.cache.id];
+      let video = this.videos[score.video.id];
       scoreIndex++;
       if (scoreIndex % 10000 === 0) {
         console.log(`Pair video-cache ${scoreIndex}/${this.scores.length}`);
       }
-      score.cache.addVideo(score.video, this);
+      cache.addVideo(video, this);
     });
   }
 

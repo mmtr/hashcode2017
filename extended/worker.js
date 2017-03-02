@@ -8,14 +8,14 @@ process.on('message', (m) => {
     case 'score':
       let video = m.video;
       let cache = m.cache;
-      let youtube = m.youtube;
-      let score = new Score(video, cache, youtube);
-
-      console.log('sending...');
+      let caches = m.caches;
+      let stats = m.stats;
+      let endpoints = m.endpoints;
+      let score = new Score(video, cache, caches, stats, endpoints);
 
       process.send({
-        action: m.action,
-        score: score ,
+        action: 'score',
+        score: score,
       });
       break;
   }
